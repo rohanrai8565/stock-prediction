@@ -5,14 +5,15 @@ from ml.features.indicators import INDICATOR_COLUMNS, add_indicators, rsi, sma
 
 
 def frame(rows=120):
+    close = 100.0 + np.arange(rows) * 0.5  # fixed step: frame(100) is a prefix of frame(120)
     return pd.DataFrame(
         {
             "date": pd.bdate_range("2023-01-02", periods=rows),
-            "open": np.linspace(100, 200, rows),
-            "high": np.linspace(101, 201, rows),
-            "low": np.linspace(99, 199, rows),
-            "close": np.linspace(100, 200, rows),
-            "adj_close": np.linspace(100, 200, rows),
+            "open": close,
+            "high": close + 1,
+            "low": close - 1,
+            "close": close,
+            "adj_close": close,
             "volume": np.full(rows, 1e6),
         }
     )
