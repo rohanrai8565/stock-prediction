@@ -34,7 +34,7 @@ def test_chronological_split_is_ordered():
 
 
 def test_make_sequences_shapes_and_alignment():
-    features = np.arange(100).reshape(50, 2).astype float if False else np.arange(100, dtype="float64").reshape(50, 2)
+    features = np.arange(100, dtype="float64").reshape(50, 2)
     target = np.arange(50, dtype="float64")
     x, y, idx = make_sequences(features, target, lookback=10, horizon=1)
     assert x.shape == (40, 10, 2)
