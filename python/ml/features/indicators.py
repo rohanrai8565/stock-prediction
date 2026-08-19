@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import List
 
+import numpy as np
 import pandas as pd
 
 INDICATOR_COLUMNS: List[str] = [
@@ -27,7 +28,7 @@ def rsi(series: pd.Series, period: int = 14) -> pd.Series:
     loss = -delta.clip(upper=0)
     avg_gain = gain.ewm(alpha=1 / period, adjust=False, min_periods=period).mean()
     avg_loss = loss.ewm(alpha=1 / period, adjust=False, min_periods=period).mean()
-    rs = avg_gain / avg_loss.replace(0, pd.NA)
+    rs = avg_gain / avg_loss.replace(0.0, np.nan)
     return (100 - (100 / (1 + rs))).astype(float).fillna(50.0)
 
 
@@ -42,7 +43,7 @@ def bollinger(series: pd.Series, window: int = 20, num_std: float = 2.0):
     std = series.rolling(window=window, min_periods=window).std()
     upper = mid + num_std * std
     lower = mid - num_std * std
-    width = (upper - lower) / mid.replace(0, pd.NA)
+    width = (upper - lower) / mid.replace(0.0, np.nan)
     return upper, lower, width
 
 
