@@ -1,0 +1,3 @@
+# Optional: FinBERT sentiment. Install only if you want transformer sentiment.
+transformers==4.46.3
+torch==2.4.1
