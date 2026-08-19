@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+models/*.keras
+models/*.joblib
+models/*_metadata.json
+models/evaluation_*.json
+.pytest_cache/
