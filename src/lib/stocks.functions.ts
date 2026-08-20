@@ -22,7 +22,8 @@ export const getOverview = createServerFn({ method: "GET" })
 
     const quote = await loadHistory(data.symbol, data.range);
     const indicators = addIndicators(quote.candles);
-    const articles = generateNews(quote.symbol, 30).slice(0, 24);
+    const label = quote.name.split(" ").slice(0, 2).join(" ") || quote.symbol;
+    const articles = generateNews(label, 30).slice(0, 24);
     const daily = dailySentiment(articles);
     const counts = {
       positive: articles.filter((a) => a.label === "positive").length,
@@ -56,7 +57,8 @@ export const predictPrice = createServerFn({ method: "POST" })
     const { runForecast } = await import("./forecast.server");
 
     const quote = await loadHistory(data.symbol, data.range);
-    const articles = generateNews(quote.symbol, 400, 2);
+    const label = quote.name.split(" ").slice(0, 2).join(" ") || quote.symbol;
+    const articles = generateNews(label, 400, 2);
     const fused = runForecast(quote.candles, articles, true);
     const marketOnly = runForecast(quote.candles, articles, false);
     return {

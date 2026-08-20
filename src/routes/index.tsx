@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getOverview, predictPrice } from "@/lib/stocks.functions";
+import { getOverview, predictPrice, searchStocks } from "@/lib/stocks.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -50,6 +50,48 @@ export const Route = createFileRoute("/")({
 const RANGES = ["6mo", "1y", "2y", "5y"] as const;
 type Range = (typeof RANGES)[number];
 
+const MARKETS = [
+  {
+    id: "india",
+    label: "India (NSE)",
+    picks: [
+      { symbol: "RELIANCE.NS", label: "Reliance" },
+      { symbol: "TCS.NS", label: "TCS (Tata)" },
+      { symbol: "TATASTEEL.NS", label: "Tata Steel" },
+      { symbol: "TMPV.NS", label: "Tata Motors PV" },
+      { symbol: "TATAPOWER.NS", label: "Tata Power" },
+      { symbol: "TATACONSUM.NS", label: "Tata Consumer" },
+      { symbol: "INFY.NS", label: "Infosys" },
+      { symbol: "HDFCBANK.NS", label: "HDFC Bank" },
+      { symbol: "^NSEI", label: "NIFTY 50" },
+    ],
+  },
+  {
+    id: "us",
+    label: "US",
+    picks: [
+      { symbol: "AAPL", label: "Apple" },
+      { symbol: "MSFT", label: "Microsoft" },
+      { symbol: "NVDA", label: "Nvidia" },
+      { symbol: "TSLA", label: "Tesla" },
+      { symbol: "AMZN", label: "Amazon" },
+      { symbol: "^GSPC", label: "S&P 500" },
+    ],
+  },
+  {
+    id: "global",
+    label: "Global",
+    picks: [
+      { symbol: "^FTSE", label: "FTSE 100" },
+      { symbol: "^N225", label: "Nikkei 225" },
+      { symbol: "0700.HK", label: "Tencent" },
+      { symbol: "BTC-USD", label: "Bitcoin" },
+      { symbol: "GC=F", label: "Gold" },
+      { symbol: "INR=X", label: "USD/INR" },
+    ],
+  },
+] as const;
+
 const fmt = (n: number, d = 2) =>
   n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
 
@@ -75,13 +117,22 @@ const chartTooltip = {
 };
 
 function Dashboard() {
-  const [input, setInput] = useState("AAPL");
-  const [symbol, setSymbol] = useState("AAPL");
+  const [input, setInput] = useState("RELIANCE.NS");
+  const [symbol, setSymbol] = useState("RELIANCE.NS");
   const [range, setRange] = useState<Range>("2y");
   const [useSentiment, setUseSentiment] = useState(true);
+  const [market, setMarket] = useState<(typeof MARKETS)[number]["id"]>("india");
 
   const fetchOverview = useServerFn(getOverview);
   const runPredict = useServerFn(predictPrice);
+  const runSearch = useServerFn(searchStocks);
+
+  const suggestions = useQuery({
+    queryKey: ["search", input],
+    queryFn: () => runSearch({ data: { q: input } }),
+    enabled: input.trim().length >= 2 && input.trim().toUpperCase() !== symbol,
+    retry: false,
+  });
 
   const overview = useQuery({
     queryKey: ["overview", symbol, range],
@@ -108,6 +159,14 @@ function Dashboard() {
     prediction.reset();
   };
 
+  const select = (next: string) => {
+    setInput(next);
+    setSymbol(next);
+    prediction.reset();
+  };
+
+  const activeMarket = MARKETS.find((m) => m.id === market) ?? MARKETS[0];
+
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
       <header className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
@@ -129,14 +188,60 @@ function Dashboard() {
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ticker e.g. MSFT"
+              placeholder="Search: reliance, tata, MSFT"
               aria-label="Ticker symbol"
-              className="tabular w-44 pl-9 uppercase"
+              className="tabular w-64 pl-9"
             />
+            {suggestions.data?.results?.length ? (
+              <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
+                {suggestions.data.results.map((s) => (
+                  <li key={s.symbol}>
+                    <button
+                      type="button"
+                      onClick={() => select(s.symbol)}
+                      className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+                    >
+                      <span className="truncate">{s.name}</span>
+                      <span className="tabular shrink-0 text-xs text-muted-foreground">
+                        {s.symbol}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
           <Button type="submit">Load</Button>
         </form>
       </header>
+
+      <section className="mt-4 space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {MARKETS.map((m) => (
+            <Button
+              key={m.id}
+              size="sm"
+              variant={m.id === market ? "secondary" : "ghost"}
+              onClick={() => setMarket(m.id)}
+            >
+              {m.label}
+            </Button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {activeMarket.picks.map((p) => (
+            <Button
+              key={p.symbol}
+              size="sm"
+              variant={p.symbol === symbol ? "default" : "outline"}
+              onClick={() => select(p.symbol)}
+            >
+              {p.label}
+              <span className="tabular ml-2 text-[10px] opacity-60">{p.symbol}</span>
+            </Button>
+          ))}
+        </div>
+      </section>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {RANGES.map((r) => (
