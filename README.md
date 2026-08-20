@@ -1,4 +1,4 @@
-# Market Mind AI
+# stock-prediction
 
 You are a Senior AI/ML Engineer, Python Developer, NLP Engineer, Backend Developer, and Full-Stack Software Architect.
 
