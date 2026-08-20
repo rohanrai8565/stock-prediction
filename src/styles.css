@@ -142,3 +142,51 @@
     color: var(--color-foreground);
   }
 }
+
+/* ---- Trading terminal theme (dark-first) ---- */
+@theme inline {
+  --color-bull: var(--bull);
+  --color-bear: var(--bear);
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root {
+  --radius: 0.375rem;
+  --background: oklch(0.16 0.02 250);
+  --foreground: oklch(0.96 0.005 250);
+  --card: oklch(0.2 0.022 252);
+  --card-foreground: oklch(0.96 0.005 250);
+  --popover: oklch(0.2 0.022 252);
+  --popover-foreground: oklch(0.96 0.005 250);
+  --primary: oklch(0.78 0.16 172);
+  --primary-foreground: oklch(0.18 0.03 200);
+  --secondary: oklch(0.26 0.025 252);
+  --secondary-foreground: oklch(0.95 0.005 250);
+  --muted: oklch(0.26 0.025 252);
+  --muted-foreground: oklch(0.7 0.02 252);
+  --accent: oklch(0.3 0.04 252);
+  --accent-foreground: oklch(0.96 0.005 250);
+  --destructive: oklch(0.62 0.21 22);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.31 0.025 252);
+  --input: oklch(0.31 0.025 252);
+  --ring: oklch(0.78 0.16 172);
+  --bull: oklch(0.78 0.16 160);
+  --bear: oklch(0.66 0.2 22);
+  --chart-1: oklch(0.78 0.16 172);
+  --chart-2: oklch(0.72 0.15 250);
+  --chart-3: oklch(0.8 0.15 85);
+  --chart-4: oklch(0.66 0.2 22);
+  --chart-5: oklch(0.74 0.14 310);
+}
+
+body {
+  font-family: var(--font-display);
+  background-color: var(--background);
+  color: var(--foreground);
+}
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
