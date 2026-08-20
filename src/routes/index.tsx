@@ -58,7 +58,7 @@ const MARKETS = [
       { symbol: "RELIANCE.NS", label: "Reliance" },
       { symbol: "TCS.NS", label: "TCS (Tata)" },
       { symbol: "TATASTEEL.NS", label: "Tata Steel" },
-      { symbol: "TATAMOTORS.NS", label: "Tata Motors" },
+      { symbol: "TMPV.NS", label: "Tata Motors PV" },
       { symbol: "TATAPOWER.NS", label: "Tata Power" },
       { symbol: "TATACONSUM.NS", label: "Tata Consumer" },
       { symbol: "INFY.NS", label: "Infosys" },
