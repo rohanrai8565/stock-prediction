@@ -43,13 +43,13 @@ The goal is to see whether blending traditional technical analysis with real-tim
 
 ## Tech Stack
 
-| Layer | Details |
-|---|---|
-| App builder | [Lovable](https://lovable.dev/) |
-| Model | LSTM (sequence model) |
-| Data | Daily OHLCV market data, financial news sentiment |
-| Indicators | Causal technical indicators (no lookahead bias) |
-| Evaluation | Backtested prediction accuracy |
+| Layer       | Details                                           |
+| ----------- | ------------------------------------------------- |
+| App builder | [Lovable](https://lovable.dev/)                   |
+| Model       | LSTM (sequence model)                             |
+| Data        | Daily OHLCV market data, financial news sentiment |
+| Indicators  | Causal technical indicators (no lookahead bias)   |
+| Evaluation  | Backtested prediction accuracy                    |
 
 ---
 
@@ -58,9 +58,11 @@ The goal is to see whether blending traditional technical analysis with real-tim
 This project was generated and is edited via **Lovable**.
 
 ### Edit in Lovable
+
 Open the [Lovable project](https://lovable.dev/projects/lovp_3hm2kxj5tw8k68nkxr8t01mq0n) and start prompting. Changes are committed automatically to this repo.
 
 ### Edit locally
+
 ```bash
 # Clone the repo
 git clone <YOUR_GIT_URL>
@@ -75,10 +77,29 @@ npm run dev
 
 Requires [Node.js](https://nodejs.org/) (nvm recommended) and npm.
 
+### Enable the AI assistant
+
+Create or edit `.env` in the project root with a valid OpenAI API key:
+
+```env
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4o-mini
+ASSISTANT_MODE=auto
+```
+
+`ASSISTANT_MODE=auto` uses OpenAI when quota is available and automatically uses
+the dashboard's local educational fallback when it is not. Set it to `local` to
+avoid OpenAI completely, or `openai` to require OpenAI. Keep the key server-only
+and restart `npm run dev` after changing it. Do not use `VITE_OPENAI_API_KEY`,
+commit `.env`, or reuse a key that has been exposed in a text file or repository
+history.
+
 ### Edit directly on GitHub
+
 Navigate to the file you want to edit, click the ✏️ (pencil) icon, make your changes, and commit.
 
 ### Edit via GitHub Codespaces
+
 Open the repo → **Code** → **Codespaces** tab → **New codespace**, edit, commit, and push.
 
 ---

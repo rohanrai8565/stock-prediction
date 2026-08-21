@@ -15,7 +15,16 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowDownRight, ArrowUpRight, Brain, LineChart as LineIcon, Newspaper, Search } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  Brain,
+  LineChart as LineIcon,
+  Newspaper,
+  Search,
+  Send,
+  Sparkles,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +32,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getOverview, predictPrice, searchStocks } from "@/lib/stocks.functions";
+import { askStockAssistant, getOverview, predictPrice, searchStocks } from "@/lib/stocks.functions";
+import { PortfolioManager } from "@/components/portfolio-manager";
+import { createEmptyPortfolio } from "@/lib/portfolio";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -49,6 +60,8 @@ export const Route = createFileRoute("/")({
 
 const RANGES = ["6mo", "1y", "2y", "5y"] as const;
 type Range = (typeof RANGES)[number];
+const HORIZONS = [1, 7, 15, 30] as const;
+type Horizon = (typeof HORIZONS)[number];
 
 const MARKETS = [
   {
@@ -122,10 +135,16 @@ function Dashboard() {
   const [range, setRange] = useState<Range>("2y");
   const [useSentiment, setUseSentiment] = useState(true);
   const [market, setMarket] = useState<(typeof MARKETS)[number]["id"]>("india");
+  const [horizon, setHorizon] = useState<Horizon>(15);
+  const [chatInput, setChatInput] = useState("");
+  const [chatHistory, setChatHistory] = useState<{ question: string; answer: string }[]>([]);
+  const [portfolio, setPortfolio] = useState(createEmptyPortfolio());
+  const [currentPrices, setCurrentPrices] = useState(new Map<string, number>());
 
   const fetchOverview = useServerFn(getOverview);
   const runPredict = useServerFn(predictPrice);
   const runSearch = useServerFn(searchStocks);
+  const askAssistant = useServerFn(askStockAssistant);
 
   const suggestions = useQuery({
     queryKey: ["search", input],
@@ -141,7 +160,7 @@ function Dashboard() {
   });
 
   const prediction = useMutation({
-    mutationFn: () => runPredict({ data: { symbol, range, useSentiment } }),
+    mutationFn: () => runPredict({ data: { symbol, range, useSentiment, horizon } }),
   });
 
   const data = overview.data;
@@ -150,6 +169,57 @@ function Dashboard() {
   const prev = rows[rows.length - 2];
   const dayChange = last && prev ? ((last.close - prev.close) / prev.close) * 100 : 0;
   const result = prediction.data?.primary;
+  const assistant = useMutation({
+    mutationFn: async (message: string) => {
+      const context = data
+        ? `${data.name} (${data.symbol}); last close ${last?.close ?? "unknown"} ${data.currency}; daily change ${dayChange.toFixed(2)}%; sentiment ${data.averageSentiment.toFixed(3)}.`
+        : undefined;
+      return askAssistant({ 
+        data: { 
+          message, 
+          symbol, 
+          context,
+          userId: "default_user",
+          currentPrice: last?.close,
+          dailyChange: dayChange,
+          rsi: rows[rows.length - 1]?.rsi14 ?? null,
+          sentiment: data?.averageSentiment || 0,
+          sma20: rows[rows.length - 1]?.sma20 ?? null,
+          macd: rows[rows.length - 1]?.macd ?? null,
+          bbUpper: rows[rows.length - 1]?.bbUpper ?? null,
+          bbLower: rows[rows.length - 1]?.bbLower ?? null,
+          predictedPrice: result?.predictedPrice,
+          percentChange: result?.percentChange,
+          direction: result?.direction,
+          confidence: result?.confidence || 50,
+        } 
+      });
+    },
+    onSuccess: (reply, question) => {
+      setChatHistory((history) => [...history, { question, answer: reply.answer }].slice(-4));
+      setChatInput("");
+    },
+  });
+
+  const assessment = result
+    ? result.percentChange > 0 && result.metrics.directionAccuracy >= 55 && result.metrics.r2 > 0
+      ? {
+          label: "Positive model signal",
+          tone: "text-bull",
+          detail: "The model projects growth, but this is not a recommendation to invest.",
+        }
+      : result.percentChange < 0 || result.metrics.directionAccuracy < 50
+        ? {
+            label: "Higher caution",
+            tone: "text-bear",
+            detail: "The forecast or backtest is weak; review fundamentals and risk before acting.",
+          }
+        : {
+            label: "Inconclusive",
+            tone: "text-muted-foreground",
+            detail: "The current model signal is not strong enough for an investment conclusion.",
+          }
+    : null;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,8 +237,54 @@ function Dashboard() {
 
   const activeMarket = MARKETS.find((m) => m.id === market) ?? MARKETS[0];
 
+  const submitChat = (event: React.FormEvent) => {
+    event.preventDefault();
+    const question = chatInput.trim();
+    if (question) assistant.mutate(question);
+  };
+
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
+      <Card className="mb-6 border-primary/40">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Sparkles className="h-4 w-4 text-primary" /> Stock Research Assistant
+          </CardTitle>
+          <CardDescription>
+            Ask about the selected stock, news, sentiment, risks, or market concepts.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {chatHistory.map((item, index) => (
+            <div
+              key={`${item.question}-${index}`}
+              className="mb-3 rounded-md bg-muted/50 p-3 text-sm"
+            >
+              <p className="font-medium">You: {item.question}</p>
+              <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+                Assistant: {item.answer}
+              </p>
+            </div>
+          ))}
+          <form onSubmit={submitChat} className="flex gap-2">
+            <Input
+              value={chatInput}
+              onChange={(event) => setChatInput(event.target.value)}
+              placeholder="Ask about news, sentiment, risks, or this stock..."
+              aria-label="Ask the stock research assistant"
+            />
+            <Button type="submit" disabled={assistant.isPending || !chatInput.trim()}>
+              <Send className="mr-1 h-4 w-4" /> {assistant.isPending ? "Thinking..." : "Ask"}
+            </Button>
+          </form>
+          {assistant.isError ? (
+            <p className="mt-2 text-xs text-destructive">{(assistant.error as Error).message}</p>
+          ) : null}
+          <p className="mt-2 text-xs text-muted-foreground">
+            Educational research only — not financial advice.
+          </p>
+        </CardContent>
+      </Card>
       <header className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-[11px] uppercase tracking-[0.25em] text-primary">
@@ -178,8 +294,8 @@ function Dashboard() {
             AI Stock Market Prediction Dashboard
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Live daily OHLCV data, causal technical indicators, financial-news sentiment scoring and a
-            backtested sequence model that forecasts the next close.
+            Live daily OHLCV data, causal technical indicators, financial-news sentiment scoring and
+            a backtested sequence model that forecasts the next close.
           </p>
         </div>
         <form onSubmit={submit} className="flex items-center gap-2">
@@ -255,6 +371,20 @@ function Dashboard() {
             }}
           >
             {r}
+          </Button>
+        ))}
+        <span className="ml-1 text-xs text-muted-foreground">Forecast:</span>
+        {HORIZONS.map((days) => (
+          <Button
+            key={days}
+            size="sm"
+            variant={days === horizon ? "secondary" : "outline"}
+            onClick={() => {
+              setHorizon(days);
+              prediction.reset();
+            }}
+          >
+            {days}d
           </Button>
         ))}
         <Button
@@ -334,7 +464,8 @@ function Dashboard() {
                   ) : (
                     <ArrowUpRight className="h-4 w-4 text-bull" />
                   )}
-                  Forecast for the next {result.horizonDays} trading day
+                  Forecast for the next {result.horizonDays} trading{" "}
+                  {result.horizonDays === 1 ? "day" : "days"}
                 </CardTitle>
                 <CardDescription>
                   {result.model} · lookback {result.lookback} bars · as of {result.asOfDate}
@@ -358,6 +489,17 @@ function Dashboard() {
             </Card>
           ) : null}
 
+          {assessment ? (
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle className="text-base">
+                  Research signal: <span className={assessment.tone}>{assessment.label}</span>
+                </CardTitle>
+                <CardDescription>{assessment.detail}</CardDescription>
+              </CardHeader>
+            </Card>
+          ) : null}
+
           <Tabs defaultValue="price" className="mt-6">
             <TabsList>
               <TabsTrigger value="price">
@@ -368,6 +510,7 @@ function Dashboard() {
                 <Newspaper className="mr-1 h-4 w-4" /> Sentiment
               </TabsTrigger>
               <TabsTrigger value="model">Model</TabsTrigger>
+              <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
             </TabsList>
 
             <TabsContent value="price">
@@ -463,6 +606,73 @@ function Dashboard() {
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">ATR (14) - Volatility</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[280px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={rows}>
+                        <CartesianGrid stroke="var(--border)" vertical={false} />
+                        <XAxis dataKey="date" tick={{ fontSize: 11 }} minTickGap={48} />
+                        <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} width={60} />
+                        <Tooltip {...chartTooltip} />
+                        <Line dataKey="atr14" stroke="var(--color-chart-2)" dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Stochastic Oscillator</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[280px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={rows}>
+                        <CartesianGrid stroke="var(--border)" vertical={false} />
+                        <XAxis dataKey="date" tick={{ fontSize: 11 }} minTickGap={48} />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} width={40} />
+                        <Tooltip {...chartTooltip} />
+                        <Line dataKey="stochasticK" stroke="var(--color-chart-1)" dot={false} />
+                        <Line dataKey="stochasticD" stroke="var(--color-chart-4)" dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Williams %R</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[280px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={rows}>
+                        <CartesianGrid stroke="var(--border)" vertical={false} />
+                        <XAxis dataKey="date" tick={{ fontSize: 11 }} minTickGap={48} />
+                        <YAxis domain={[-100, 0]} tick={{ fontSize: 11 }} width={40} />
+                        <Tooltip {...chartTooltip} />
+                        <Line dataKey="williamsR" stroke="var(--color-chart-3)" dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Ichimoku Cloud</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[280px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={rows}>
+                        <CartesianGrid stroke="var(--border)" vertical={false} />
+                        <XAxis dataKey="date" tick={{ fontSize: 11 }} minTickGap={48} />
+                        <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} width={60} />
+                        <Tooltip {...chartTooltip} />
+                        <Line dataKey="close" stroke="var(--color-chart-1)" dot={false} />
+                        <Line dataKey="ichimokuTenkan" stroke="var(--color-chart-3)" dot={false} />
+                        <Line dataKey="ichimokuKijun" stroke="var(--color-chart-5)" dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
 
@@ -471,7 +681,9 @@ function Dashboard() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">Daily mean sentiment</CardTitle>
-                    <CardDescription>Lexicon scoring, joined causally to price bars</CardDescription>
+                    <CardDescription>
+                      Lexicon scoring, joined causally to price bars
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
@@ -586,18 +798,24 @@ function Dashboard() {
                 </Card>
               ) : null}
             </TabsContent>
+
+            <TabsContent value="portfolio">
+              <PortfolioManager
+                portfolio={portfolio}
+                onUpdatePortfolio={setPortfolio}
+                currentPrices={currentPrices}
+              />
+            </TabsContent>
           </Tabs>
 
           {prediction.isError ? (
-            <p className="mt-4 text-sm text-destructive">
-              {(prediction.error as Error).message}
-            </p>
+            <p className="mt-4 text-sm text-destructive">{(prediction.error as Error).message}</p>
           ) : null}
 
           <footer className="mt-10 border-t border-border pt-4 text-xs text-muted-foreground">
             Educational project — “AI-Based Stock Market Prediction Using LSTM and News Sentiment
-            Analysis”. The full Python/TensorFlow implementation (FinBERT, Keras LSTM, FastAPI) lives in
-            the <code className="tabular">python/</code> directory of this repository.
+            Analysis”. The full Python/TensorFlow implementation (FinBERT, Keras LSTM, FastAPI)
+            lives in the <code className="tabular">python/</code> directory of this repository.
           </footer>
         </>
       ) : null}

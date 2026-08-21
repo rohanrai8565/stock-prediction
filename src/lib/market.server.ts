@@ -11,7 +11,7 @@ export type Quote = {
 
 const UA = "Mozilla/5.0 (compatible; StockLSTMDashboard/1.0)";
 
-async function fetchJson(url: string, attempts = 3): Promise<any> {
+async function fetchJson(url: string, attempts = 3): Promise<unknown> {
   let lastError: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
@@ -30,10 +30,17 @@ async function fetchJson(url: string, attempts = 3): Promise<any> {
 
 export async function searchSymbols(query: string) {
   if (!query.trim()) return [];
-  const data = await fetchJson(
+  const data = (await fetchJson(
     `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0`,
-  );
-  const quotes: any[] = data?.quotes ?? [];
+  )) as {
+    quotes?: Array<{
+      symbol?: unknown;
+      shortname?: unknown;
+      longname?: unknown;
+      exchDisp?: unknown;
+    }>;
+  };
+  const quotes = data.quotes ?? [];
   return quotes
     .filter((q) => q?.symbol)
     .map((q) => ({
@@ -49,14 +56,37 @@ export async function loadHistory(symbol: string, range = "2y"): Promise<Quote> 
   if (!/^[A-Z0-9.\-^=]{1,16}$/.test(clean)) {
     throw new Error(`'${symbol}' is not a valid ticker symbol.`);
   }
-  const data = await fetchJson(
+  const data = (await fetchJson(
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(clean)}?range=${range}&interval=1d`,
   ).catch((err: Error) => {
     if (err.message === "NOT_FOUND") {
       throw new Error(`Symbol '${clean}' was not found — it may be delisted or misspelled.`);
     }
     throw new Error(`Market data provider is unavailable right now (${err.message}).`);
-  });
+  })) as {
+    chart?: {
+      result?: Array<{
+        timestamp?: number[];
+        indicators?: {
+          quote?: Array<{
+            open?: number[];
+            high?: number[];
+            low?: number[];
+            close?: number[];
+            volume?: number[];
+          }>;
+          adjclose?: Array<{ adjclose?: number[] }>;
+        };
+        meta?: {
+          longName?: unknown;
+          shortName?: unknown;
+          currency?: unknown;
+          fullExchangeName?: unknown;
+          regularMarketPrice?: unknown;
+        };
+      }>;
+    };
+  };
 
   const result = data?.chart?.result?.[0];
   if (!result?.timestamp) {

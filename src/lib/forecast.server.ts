@@ -1,7 +1,13 @@
 import { addIndicators, type Candle } from "./indicators";
 import { dailySentiment, type Article } from "./sentiment";
 
-export type Metrics = { mae: number; rmse: number; mape: number; r2: number; directionAccuracy: number };
+export type Metrics = {
+  mae: number;
+  rmse: number;
+  mape: number;
+  r2: number;
+  directionAccuracy: number;
+};
 export type ForecastResult = {
   model: string;
   features: string[];
@@ -17,6 +23,7 @@ export type ForecastResult = {
   baseline: Metrics;
   testSeries: { date: string; actual: number; predicted: number }[];
   disclaimer: string;
+  confidence: number;
 };
 
 /** Ridge regression solved by Gaussian elimination (closed-form, no native deps). */
@@ -90,13 +97,19 @@ export function runForecast(
   const sent = new Map(dailySentiment(articles).map((d) => [d.date, d.mean]));
 
   type Row = { date: string; close: number; x: number[] };
+  type IndicatorValues = Record<(typeof FEATURES)[number], number | null>;
   const clean: Row[] = [];
   for (const r of rows) {
-    const base = FEATURES.map((f) => (r as any)[f] as number | null);
+    const values = r as unknown as IndicatorValues;
+    const base = FEATURES.map((f) => values[f]);
     if (base.some((v) => v === null || v === undefined || Number.isNaN(v))) continue;
     const x = base as number[];
     // Sentiment is joined causally: only same-or-earlier-day news is used.
-    clean.push({ date: r.date, close: r.close, x: useSentiment ? [...x, sent.get(r.date) ?? 0] : x });
+    clean.push({
+      date: r.date,
+      close: r.close,
+      x: useSentiment ? [...x, sent.get(r.date) ?? 0] : x,
+    });
   }
 
   const samples: { date: string; x: number[]; y: number; prev: number }[] = [];
@@ -138,7 +151,8 @@ export function runForecast(
   const scale = lastRow.close || 1;
   const flat: number[] = [1];
   for (const step of lastWindow) flat.push(step.x[0]! / scale);
-  for (let k = 1; k < lastRow.x.length; k++) flat.push(lastRow.x[k]! / (k === 3 || k >= 5 ? 1 : 100));
+  for (let k = 1; k < lastRow.x.length; k++)
+    flat.push(lastRow.x[k]! / (k === 3 || k >= 5 ? 1 : 100));
   const predicted = dot(w, flat) * scale;
   const change = predicted - lastRow.close;
 
@@ -162,5 +176,6 @@ export function runForecast(
     })),
     disclaimer:
       "Point estimate from a statistical sequence model. Not investment advice; no accuracy guarantee.",
+    confidence: m.r2 * 100,
   };
 }

@@ -1,0 +1,40 @@
+# WebSocket server Dockerfile
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Production stage
+FROM node:18-alpine AS production
+
+WORKDIR /app
+
+# Install dumb-init
+RUN apk add --no-cache dumb-init
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Copy dependencies
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
+
+# Copy WebSocket server code
+COPY --chown=nodejs:nodejs ./src/lib/websocket.ts ./src/lib/
+COPY --chown=nodejs:nodejs ./tsconfig.json ./
+
+# Switch to non-root user
+USER nodejs
+
+# Expose WebSocket port
+EXPOSE 8080
+
+# Start WebSocket server
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "-e", "require('./src/lib/websocket.ts').createWebSocketManager().connect()"]
