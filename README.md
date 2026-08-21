@@ -1,85 +1,85 @@
-# 📈 Fin Sentinel Bot — LSTM + News Sentiment Stock Forecast Dashboard
+# Stock Prediction Dashboard
 
-> Live market data, technical indicators, financial-news sentiment analysis, and next-day price predictions — powered by a backtested LSTM sequence model.
+An educational stock research dashboard that combines market data, technical indicators, financial-news sentiment, and machine-learning forecasts in one interface.
 
-🔗 **Live App:** [fin-sentinel-bot.lovable.app](https://fin-sentinel-bot.lovable.app/)
-🛠️ **Built with:** [Lovable](https://lovable.dev/)
+**Live application:** [stock-prediction-6zuz.onrender.com](https://stock-prediction-6zuz.onrender.com/)
 
----
+> This project is for research and education. Forecasts are not financial advice, and no model can guarantee investment returns.
 
-## Overview
+## What It Does
 
-**Fin Sentinel Bot** is an AI-powered stock market prediction dashboard that fuses:
+- Displays daily OHLCV market data for supported stock and index symbols.
+- Calculates technical indicators from historical price data.
+- Analyzes financial-news sentiment and optionally includes it in the forecast.
+- Trains an LSTM sequence model and generates a next-day closing-price forecast.
+- Shows backtesting metrics so forecasts can be evaluated against historical results.
+- Provides portfolio, alerts, risk-management, backtesting, and market-analysis utilities in the TypeScript application layer.
 
-- **Live daily OHLCV data** for stocks across multiple markets
-- **Causal technical indicators** computed from historical price action
-- **Financial news sentiment scoring** to capture market mood
-- **An LSTM sequence model** trained on the combined feature set to forecast the next day's closing price
-- **Backtested accuracy metrics** so predictions can be evaluated against historical performance
+## How A Forecast Works
 
-The goal is to see whether blending traditional technical analysis with real-time news sentiment improves short-term price forecasting versus either signal alone.
+1. Select a market and ticker, such as `RELIANCE.NS`, `TCS.NS`, or `^NSEI`.
+2. Choose a historical lookback period.
+3. Enable or disable news-sentiment features.
+4. Start training and prediction.
+5. Review the forecast, indicators, sentiment, and historical evaluation metrics together.
 
----
+The model output is an estimate based on historical data and selected features. It should be treated as an experiment, not a trading signal.
 
-## Features
+## Technology
 
-- 🌍 **Multi-market support** — India (NSE), US, and Global tickers
-- 📊 **Ticker presets** — Reliance, TCS, Tata Steel, Tata Motors, Tata Power, Tata Consumer, Infosys, HDFC Bank, NIFTY 50, and more
-- 🕒 **Flexible lookback windows** — 6 months, 1 year, 2 years, 5 years
-- 🧠 **Sentiment fusion toggle** — turn financial-news sentiment scoring on/off to compare model performance
-- 🔁 **Train & predict** — train the LSTM on the selected window and generate a next-day price forecast
-- ✅ **Backtesting** — accuracy metrics computed against historical actuals
+| Area | Technology |
+| --- | --- |
+| Frontend and server | React 19, TanStack Router, TanStack Start, TypeScript |
+| Build system | Vite 8, Nitro, Tailwind CSS 4 |
+| UI | Radix UI, Lucide React, Recharts |
+| Market data | Yahoo Finance through the application data services |
+| Forecasting | LSTM sequence model and technical features |
+| Sentiment | Financial-news analysis with an optional OpenAI assistant integration |
+| Container | Docker with Node.js 22 Alpine |
+| Hosting | Render Web Service |
+| Supporting ML API | Optional FastAPI service under `python/` |
 
----
+## Repository Layout
 
-## How It Works
+```text
+src/
+  components/       Reusable application and UI components
+  lib/              Market, forecast, sentiment, portfolio, and risk utilities
+  routes/           TanStack Router pages
+  server.ts         Server entrypoint and SSR error handling
+python/
+  backend/          Optional FastAPI backend
+  ml/               Feature engineering, preprocessing, models, and training
+  tests/            Python unit and API tests
+Dockerfile          Main production container
+Dockerfile.websocket WebSocket container definition
+render.yaml         Render Blueprint configuration
+```
 
-1. **Select a market and ticker** (e.g. `RELIANCE.NS`, `TCS.NS`, `^NSEI`)
-2. **Choose a historical lookback window** (6mo – 5y)
-3. **Toggle sentiment fusion** to include/exclude financial news sentiment as a model input
-4. **Click "Train & predict"** — the app pulls OHLCV data, computes technical indicators, scores recent news sentiment, trains/updates the LSTM, and outputs a next-day forecast alongside backtested accuracy
+## Run Locally
 
----
+### Requirements
 
-## Tech Stack
+- Node.js 22 or newer
+- npm 10 or newer
+- Python 3.10 or newer if you use the optional Python services
 
-| Layer       | Details                                           |
-| ----------- | ------------------------------------------------- |
-| App builder | [Lovable](https://lovable.dev/)                   |
-| Model       | LSTM (sequence model)                             |
-| Data        | Daily OHLCV market data, financial news sentiment |
-| Indicators  | Causal technical indicators (no lookahead bias)   |
-| Evaluation  | Backtested prediction accuracy                    |
+Node 18 is not supported by the current Vite, Rolldown, Nitro, and TanStack dependencies.
 
----
-
-## Getting Started
-
-This project was generated and is edited via **Lovable**.
-
-### Edit in Lovable
-
-Open the [Lovable project](https://lovable.dev/projects/lovp_3hm2kxj5tw8k68nkxr8t01mq0n) and start prompting. Changes are committed automatically to this repo.
-
-### Edit locally
+### Install and start the web application
 
 ```bash
-# Clone the repo
-git clone <YOUR_GIT_URL>
-cd fin-sentinel-bot
-
-# Install dependencies
-npm install
-
-# Start the dev server
+git clone https://github.com/rohanrai8565/stock-prediction.git
+cd stock-prediction
+npm ci
 npm run dev
 ```
 
-Requires [Node.js](https://nodejs.org/) (nvm recommended) and npm.
+Open the local URL shown by Vite, normally `http://localhost:5173`.
 
-### Enable the AI assistant
+### Environment variables
 
-Create or edit `.env` in the project root with a valid OpenAI API key:
+Create a `.env` file in the project root and fill in the values locally:
 
 ```env
 OPENAI_API_KEY=your_key_here
@@ -87,35 +87,68 @@ OPENAI_MODEL=gpt-4o-mini
 ASSISTANT_MODE=auto
 ```
 
-`ASSISTANT_MODE=auto` uses OpenAI when quota is available and automatically uses
-the dashboard's local educational fallback when it is not. Set it to `local` to
-avoid OpenAI completely, or `openai` to require OpenAI. Keep the key server-only
-and restart `npm run dev` after changing it. Do not use `VITE_OPENAI_API_KEY`,
-commit `.env`, or reuse a key that has been exposed in a text file or repository
-history.
+The main application variables are:
 
-### Edit directly on GitHub
+| Variable | Required | Description |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | Optional | Server-only key for the OpenAI assistant integration |
+| `OPENAI_MODEL` | Optional | Assistant model, default `gpt-4o-mini` |
+| `ASSISTANT_MODE` | Optional | `auto`, `local`, or `openai`; default `auto` |
+| `DATABASE_URL` | Optional | Database connection string when persistence is enabled |
+| `REDIS_URL` | Optional | Redis connection string when caching is enabled |
 
-Navigate to the file you want to edit, click the ✏️ (pencil) icon, make your changes, and commit.
+Never commit `.env`, expose an API key through a `VITE_*` variable, or place credentials in example files. Use an empty value or a descriptive placeholder in `.env.example`.
 
-### Edit via GitHub Codespaces
+## Verify Changes
 
-Open the repo → **Code** → **Codespaces** tab → **New codespace**, edit, commit, and push.
+```bash
+npm run build
+npm run lint
+```
 
----
+Run the optional Python test suite from the repository root:
 
-## Deployment
+```bash
+python -m pip install -r python/requirements.txt
+pytest -q python/tests
+```
 
-Open [Lovable](https://lovable.dev/) and use **Share → Publish** to deploy. Custom domains are supported via **Project → Settings → Domains → Connect Domain**.
+## Docker
 
----
+Build and run the main application locally:
+
+```bash
+docker build -t stock-prediction .
+docker run --rm -p 3000:3000 --env-file .env stock-prediction
+```
+
+The production container uses Nitro's Node server output and listens on the `PORT` environment variable, defaulting to port `3000`.
+
+The repository also contains a `docker-compose.yml` for the broader local stack, including PostgreSQL, Redis, the web application, Nginx, and the optional WebSocket service.
+
+## Deploy To Render
+
+The repository includes [`render.yaml`](render.yaml), which defines the web service and enables automatic deployment from the `main` branch.
+
+1. Open the Render dashboard and choose **New > Blueprint**.
+2. Select `rohanrai8565/stock-prediction`.
+3. Confirm the `stock-prediction` web service from `render.yaml`.
+4. Add `OPENAI_API_KEY` as a secret environment variable if the assistant is enabled.
+5. Deploy and wait for the health check at `/` to pass.
+
+Render builds the application with [`Dockerfile`](Dockerfile), uses Node.js 22, and automatically provides the `PORT` value required by the server.
+
+## Security
+
+- Keep API keys and database credentials in environment variables or Render secret settings.
+- Rotate any key that has ever been committed, pasted into logs, or shared publicly.
+- Do not use `VITE_` for server-only credentials because Vite exposes those variables to browser code.
+- Treat market-data credentials and generated model artifacts as sensitive operational data.
 
 ## Disclaimer
 
-⚠️ This dashboard is built for **educational and experimental purposes only**. Predictions from the model are **not financial advice**. Stock markets are influenced by many factors beyond historical price and news sentiment — always do your own research before making investment decisions.
-
----
+This dashboard is an experimental research tool. Historical backtests do not predict future performance. Forecasts may be inaccurate, delayed, or unavailable when market-data providers, news sources, model services, or external APIs fail. Always verify information independently and consult a qualified financial professional before making investment decisions.
 
 ## License
 
-Add your preferred license here (e.g. MIT).
+No license has been declared yet. Add a `LICENSE` file before distributing this project as open-source software.
